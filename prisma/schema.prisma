@@ -1,0 +1,1987 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  name          String
+  email         String         @unique
+  passwordHash  String
+  isActive      Boolean        @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  notifications Notification[]
+  passwordReset PasswordReset?
+  sessions      Session[]
+  companies     UserCompany[]
+}
+
+model Company {
+  id            String          @id @default(cuid())
+  name          String
+  email         String?         @unique
+  industry      String?
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  customers     Customer[]
+  assets        CustomerAsset[]
+  employees     Employee[]
+  integrations  Integration[]
+  jobs          Job[]
+  notifications Notification[]
+  quotes        Quote[]
+  sessions      Session[]
+  sites         Site[]
+  users         UserCompany[]
+
+  sync  Sync[]
+  syncEntityConfig SyncEntityConfig[]
+  csvEntityConfig CsvEntityConfig[]
+}
+
+model Role {
+  id        String        @id @default(cuid())
+  name      String        @unique
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  users     UserCompany[]
+}
+
+model UserCompany {
+  id        String   @id @default(cuid())
+  userId    String
+  companyId String
+  roleId    String?
+  createdAt DateTime @default(now())
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role      Role?    @relation(fields: [roleId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([companyId])
+  @@index([roleId])
+}
+
+model Session {
+  id               String   @id @default(cuid())
+  userId           String
+  activeCompanyId  String?
+  refreshTokenHash String?
+  userAgent        String?
+  ip               String?
+  revoked          Boolean  @default(false)
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
+  company          Company? @relation(fields: [activeCompanyId], references: [id])
+  user             User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([activeCompanyId])
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String?
+  companyId String?
+  title     String
+  message   String
+  type      String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  company   Company? @relation(fields: [companyId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([companyId])
+}
+
+model Integration {
+  id             String   @id @default(cuid())
+  companyId      String
+  provider       String
+  apiKey         String?
+  apiUrl         String?
+  config         Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  companyIdValue String?
+  company        Company  @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, provider])
+}
+
+model Customer {
+  id                        Int             @id
+  companyId                 String
+  companyName               String?
+  phone                     String?
+  doNotCall                 Boolean         @default(false)
+  altPhone                  String?
+  email                     String?
+  website                   String?
+  fax                       String?
+  address                   String?
+  city                      String?
+  state                     String?
+  postalCode                String?
+  country                   String?
+  billingAddress            String?
+  billingCity               String?
+  billingState              String?
+  billingPostalCode         String?
+  billingCountry            String?
+  customerType              String?
+  amountOwing               Decimal?        @db.Decimal(10, 2)
+  creditLimit               Decimal?        @db.Decimal(10, 2)
+  onStop                    Boolean         @default(false)
+  archived                  Boolean         @default(false)
+  accountManagerId          Int?
+  customerProfileId         Int?
+  customerGroupId           Int?
+  dateCreated               DateTime?
+  dateModified              DateTime?
+  lastSynced                DateTime        @default(now())
+  accountManagerName        String?
+  alwaysDeductCIS           Boolean?
+  bankAccountName           String?
+  bankAccountNo             String?
+  bankRoutingNo             String?
+  companyNumber             String?
+  currency                  String?
+  customerGroupName         String?
+  customerProfileName       String?
+  discountFee               Decimal?        @db.Decimal(10, 2)
+  ein                       String?
+  labourReverseTaxEnabled   Boolean?
+  labourTaxCodeCode         String?
+  labourTaxCodeId           Int?
+  labourTaxCodeRate         Decimal?        @db.Decimal(5, 2)
+  labourTaxCodeType         String?
+  materialMarkup            Decimal?        @db.Decimal(10, 2)
+  materialPricingTierId     Int?
+  materialPricingTierMarkup Decimal?        @db.Decimal(10, 2)
+  materialPricingTierName   String?
+  partReverseTaxEnabled     Boolean?
+  partTaxCodeCode           String?
+  partTaxCodeId             Int?
+  partTaxCodeRate           Decimal?        @db.Decimal(5, 2)
+  partTaxCodeType           String?
+  paymentMethodId           Int?
+  paymentMethodName         String?
+  paymentTermDays           Int?
+  paymentTermId             Int?
+  paymentTermType           String?
+  preferredTechs            Json?
+  profileNotes              String?
+  retentionType             String?
+  serviceFeeId              Int?
+  serviceFeeName            String?
+  serviceJobCostCenterId    Int?
+  serviceJobCostCenterName  String?
+  tags                      Json?
+  vendorOrderNoRequired     Boolean?
+  company                   Company         @relation(fields: [companyId], references: [id])
+  assets                    CustomerAsset[]
+  jobs                      Job[]
+  quotes                    Quote[]
+  sites                     Site[]
+
+  @@unique([id, companyId])
+  @@index([companyId])
+  @@index([email])
+  @@index([dateModified])
+}
+
+model Site {
+  id                         Int             @id
+  companyId                  String
+  customerId                 Int?
+  name                       String
+  address                    String?
+  city                       String?
+  state                      String?
+  postalCode                 String?
+  country                    String?
+  latitude                   Decimal?        @db.Decimal(10, 8)
+  longitude                  Decimal?        @db.Decimal(11, 8)
+  dateCreated                DateTime?
+  dateModified               DateTime?
+  lastSynced                 DateTime        @default(now())
+  archived                   Boolean?
+  billingAddress             String?
+  billingCity                String?
+  billingContact             String?
+  billingCountry             String?
+  billingPostalCode          String?
+  billingState               String?
+  primaryContactCellPhone    String?
+  primaryContactEmail        String?
+  primaryContactFamilyName   String?
+  primaryContactFax          String?
+  primaryContactGivenName    String?
+  primaryContactId           Int?
+  primaryContactNotification String?
+  primaryContactPosition     String?
+  primaryContactTitle        String?
+  primaryContactWorkPhone    String?
+  privateNotes               String?
+  publicNotes                String?
+  serviceFeeId               Int?
+  serviceFeeName             String?
+  stcZone                    Int?
+  veecZone                   String?
+  zoneId                     Int?
+  zoneName                   String?
+  customerName               String?
+  assets                     CustomerAsset[]
+  jobs                       Job[]
+  quotes                     Quote[]
+  company                    Company         @relation(fields: [companyId], references: [id])
+  customer                   Customer?       @relation(fields: [customerId], references: [id])
+
+  @@unique([id, companyId])
+  @@index([companyId])
+  @@index([customerId])
+}
+
+model Job {
+  id                            Int       @id
+  companyId                     String
+  reference                     String?
+  name                          String?
+  description                   String?
+  customerId                    Int?
+  siteId                        Int?
+  stage                         String?
+  jobType                       String?
+  priority                      String?
+  totalExTax                    Decimal?  @db.Decimal(10, 2)
+  totalTax                      Decimal?  @db.Decimal(10, 2)
+  totalIncTax                   Decimal?  @db.Decimal(10, 2)
+  materialsCostActual           Decimal?  @db.Decimal(10, 2)
+  materialsCostEstimate         Decimal?  @db.Decimal(10, 2)
+  laborHoursActual              Decimal?  @db.Decimal(10, 2)
+  laborHoursEstimate            Decimal?  @db.Decimal(10, 2)
+  grossProfitActual             Decimal?  @db.Decimal(10, 2)
+  grossMarginActual             Decimal?  @db.Decimal(10, 2)
+  invoicedValue                 Decimal?  @db.Decimal(10, 2)
+  dateCreated                   DateTime?
+  dateScheduled                 DateTime?
+  dateCompleted                 DateTime?
+  dateInvoiced                  DateTime?
+  dateModified                  DateTime?
+  lastSynced                    DateTime  @default(now())
+  archived                      Boolean   @default(false)
+  adjustedActual                Decimal?  @db.Decimal(10, 2)
+  adjustedEstimate              Decimal?  @db.Decimal(10, 2)
+  adjustedRevised               Decimal?  @db.Decimal(10, 2)
+  autoAdjustStatus              Boolean?
+  commissionActual              Decimal?  @db.Decimal(10, 2)
+  commissionEstimate            Decimal?  @db.Decimal(10, 2)
+  commissionRevised             Decimal?  @db.Decimal(10, 2)
+  convertedFromDate             DateTime?
+  convertedFromId               Int?
+  convertedFromQuoteDescription String?
+  convertedFromQuoteExTax       Decimal?  @db.Decimal(10, 2)
+  convertedFromQuoteId          Int?
+  convertedFromQuoteIncTax      Decimal?  @db.Decimal(10, 2)
+  convertedFromQuoteTax         Decimal?  @db.Decimal(10, 2)
+  convertedFromType             String?
+  customerContactFamilyName     String?
+  customerContactGivenName      String?
+  customerContactId             Int?
+  customerContractEndDate       DateTime?
+  customerContractId            Int?
+  customerContractName          String?
+  customerContractNo            String?
+  customerContractStartDate     DateTime?
+  customerFamilyName            String?
+  customerGivenName             String?
+  customerName                  String?
+  dateIssued                    DateTime?
+  discount                      Decimal?  @db.Decimal(10, 2)
+  dueDate                       DateTime?
+  dueTime                       String?
+  grossMarginEstimate           Decimal?  @db.Decimal(10, 2)
+  grossMarginRevised            Decimal?  @db.Decimal(10, 2)
+  grossProfitEstimate           Decimal?  @db.Decimal(10, 2)
+  grossProfitRevised            Decimal?  @db.Decimal(10, 2)
+  invoicePercentage             Decimal?  @db.Decimal(10, 2)
+  isRetentionEnabled            Boolean?
+  isVariation                   Boolean?
+  laborActual                   Decimal?  @db.Decimal(10, 2)
+  laborCommitted                Decimal?  @db.Decimal(10, 2)
+  laborEstimate                 Decimal?  @db.Decimal(10, 2)
+  laborHoursCommitted           Decimal?  @db.Decimal(10, 2)
+  laborHoursRevised             Decimal?  @db.Decimal(10, 2)
+  laborRevised                  Decimal?  @db.Decimal(10, 2)
+  materialsCostCommitted        Decimal?  @db.Decimal(10, 2)
+  materialsCostRevised          Decimal?  @db.Decimal(10, 2)
+  materialsMarkupActual         Decimal?  @db.Decimal(10, 2)
+  materialsMarkupEstimate       Decimal?  @db.Decimal(10, 2)
+  materialsMarkupRevised        Decimal?  @db.Decimal(10, 2)
+  membershipDiscount            Decimal?  @db.Decimal(10, 2)
+  nettMarginActual              Decimal?  @db.Decimal(10, 2)
+  nettMarginEstimate            Decimal?  @db.Decimal(10, 2)
+  nettMarginRevised             Decimal?  @db.Decimal(10, 2)
+  nettProfitActual              Decimal?  @db.Decimal(10, 2)
+  nettProfitEstimate            Decimal?  @db.Decimal(10, 2)
+  nettProfitRevised             Decimal?  @db.Decimal(10, 2)
+  notes                         String?
+  orderNo                       String?
+  overheadActual                Decimal?  @db.Decimal(10, 2)
+  overheadCommitted             Decimal?  @db.Decimal(10, 2)
+  overheadEstimate              Decimal?  @db.Decimal(10, 2)
+  overheadRevised               Decimal?  @db.Decimal(10, 2)
+  plantActual                   Decimal?  @db.Decimal(10, 2)
+  plantCommitted                Decimal?  @db.Decimal(10, 2)
+  plantEstimate                 Decimal?  @db.Decimal(10, 2)
+  plantHoursActual              Decimal?  @db.Decimal(10, 2)
+  plantHoursEstimate            Decimal?  @db.Decimal(10, 2)
+  plantHoursRevised             Decimal?  @db.Decimal(10, 2)
+  plantRevised                  Decimal?  @db.Decimal(10, 2)
+  projectManagerId              Int?
+  projectManagerName            String?
+  projectManagerType            String?
+  projectManagerTypeId          Int?
+  requestNo                     String?
+  resourcesCostActual           Decimal?  @db.Decimal(10, 2)
+  resourcesCostCommitted        Decimal?  @db.Decimal(10, 2)
+  resourcesCostEstimate         Decimal?  @db.Decimal(10, 2)
+  resourcesCostRevised          Decimal?  @db.Decimal(10, 2)
+  resourcesMarkupActual         Decimal?  @db.Decimal(10, 2)
+  resourcesMarkupEstimate       Decimal?  @db.Decimal(10, 2)
+  resourcesMarkupRevised        Decimal?  @db.Decimal(10, 2)
+  responseTimeDays              Int?
+  responseTimeHours             Int?
+  responseTimeId                Int?
+  responseTimeMinutes           Int?
+  responseTimeName              String?
+  salespersonId                 Int?
+  salespersonName               String?
+  salespersonType               String?
+  salespersonTypeId             Int?
+  siteContactFamilyName         String?
+  siteContactGivenName          String?
+  siteContactId                 Int?
+  siteName                      String?
+  statusColor                   String?
+  statusId                      Int?
+  statusName                    String?
+  stcValue                      Decimal?  @db.Decimal(10, 2)
+  stcsEligible                  Boolean?
+  tags                          Json?
+  technicianId                  Int?
+  technicianName                String?
+  technicianType                String?
+  technicianTypeId              Int?
+  technicians                   Json?
+  type                          String?
+  veecValue                     Decimal?  @db.Decimal(10, 2)
+  veecsEligible                 Boolean?
+  accountManagerComments        String?
+  company                       Company   @relation(fields: [companyId], references: [id])
+  customer                      Customer? @relation(fields: [customerId], references: [id])
+  site                          Site?     @relation(fields: [siteId], references: [id])
+  quotes                        Quote[]
+
+  @@unique([id, companyId])
+  @@index([companyId])
+  @@index([statusName])
+  @@index([customerId])
+  @@index([dateModified])
+}
+
+model Quote {
+  id                           Int       @id
+  companyId                    String
+  reference                    String?
+  name                         String?
+  description                  String?
+  customerId                   Int?
+  siteId                       Int?
+  totalExTax                   Decimal?  @db.Decimal(10, 2)
+  totalTax                     Decimal?  @db.Decimal(10, 2)
+  totalIncTax                  Decimal?  @db.Decimal(10, 2)
+  convertedToJob               Boolean   @default(false)
+  jobId                        Int?
+  dateCreated                  DateTime?
+  dateSent                     DateTime?
+  dateAccepted                 DateTime?
+  dateExpires                  DateTime?
+  dateModified                 DateTime?
+  lastSynced                   DateTime  @default(now())
+  adjustedEstimate             Decimal?  @db.Decimal(10, 2)
+  adjustedRevised              Decimal?  @db.Decimal(10, 2)
+  archiveReasonId              Int?
+  archiveReasonName            String?
+  commissionEstimate           Decimal?  @db.Decimal(10, 2)
+  commissionRevised            Decimal?  @db.Decimal(10, 2)
+  convertedFromLeadDateCreated DateTime?
+  convertedFromLeadId          Int?
+  convertedFromLeadName        String?
+  customerContactFamilyName    String?
+  customerContactGivenName     String?
+  customerContactId            Int?
+  customerFamilyName           String?
+  customerGivenName            String?
+  customerName                 String?
+  customerStage                String?
+  dateApproved                 DateTime?
+  dateIssued                   DateTime?
+  discount                     Decimal?  @db.Decimal(10, 2)
+  dueDate                      DateTime?
+  forecastMonth                Int?
+  forecastPercent              Decimal?  @db.Decimal(10, 2)
+  forecastYear                 Int?
+  isClosed                     Boolean?
+  isVariation                  Boolean?
+  jobNo                        String?
+  laborEstimate                Decimal?  @db.Decimal(10, 2)
+  laborHoursEstimate           Decimal?  @db.Decimal(10, 2)
+  laborHoursRevised            Decimal?  @db.Decimal(10, 2)
+  laborRevised                 Decimal?  @db.Decimal(10, 2)
+  linkedJobId                  Int?
+  materialsCostEstimate        Decimal?  @db.Decimal(10, 2)
+  materialsCostRevised         Decimal?  @db.Decimal(10, 2)
+  materialsMarkupEstimate      Decimal?  @db.Decimal(10, 2)
+  materialsMarkupRevised       Decimal?  @db.Decimal(10, 2)
+  membershipDiscount           Decimal?  @db.Decimal(10, 2)
+  notes                        String?
+  orderNo                      String?
+  overheadEstimate             Decimal?  @db.Decimal(10, 2)
+  overheadRevised              Decimal?  @db.Decimal(10, 2)
+  plantEstimate                Decimal?  @db.Decimal(10, 2)
+  plantHoursEstimate           Decimal?  @db.Decimal(10, 2)
+  plantHoursRevised            Decimal?  @db.Decimal(10, 2)
+  plantRevised                 Decimal?  @db.Decimal(10, 2)
+  projectManagerId             Int?
+  projectManagerName           String?
+  projectManagerType           String?
+  projectManagerTypeId         Int?
+  requestNo                    String?
+  resourcesCostEstimate        Decimal?  @db.Decimal(10, 2)
+  resourcesCostRevised         Decimal?  @db.Decimal(10, 2)
+  resourcesMarkupEstimate      Decimal?  @db.Decimal(10, 2)
+  resourcesMarkupRevised       Decimal?  @db.Decimal(10, 2)
+  salespersonId                Int?
+  salespersonName              String?
+  salespersonType              String?
+  salespersonTypeId            Int?
+  siteContactFamilyName        String?
+  siteContactGivenName         String?
+  siteContactId                Int?
+  siteName                     String?
+  stage                        String?
+  statusColor                  String?
+  statusId                     Int?
+  statusName                   String?
+  stcValue                     Decimal?  @db.Decimal(10, 2)
+  stcsEligible                 Boolean?
+  technicianId                 Int?
+  technicianName               String?
+  technicianType               String?
+  technicianTypeId             Int?
+  type                         String?
+  validityDays                 Int?
+  veecValue                    Decimal?  @db.Decimal(10, 2)
+  veecsEligible                Boolean?
+  company                      Company   @relation(fields: [companyId], references: [id])
+  customer                     Customer? @relation(fields: [customerId], references: [id])
+  job                          Job?      @relation(fields: [jobId], references: [id])
+  site                         Site?     @relation(fields: [siteId], references: [id])
+
+  @@unique([id, companyId])
+  @@index([companyId])
+  @@index([customerId])
+  @@index([statusName])
+  @@index([dateModified])
+}
+
+model Employee {
+  id                           Int       @id
+  companyId                    String
+  name                         String
+  position                     String?
+  email                        String?
+  workPhone                    String?
+  isSalesperson                Boolean   @default(false)
+  isProjectManager             Boolean   @default(false)
+  archived                     Boolean   @default(false)
+  payRate                      Decimal?  @db.Decimal(10, 2)
+  dateCreated                  DateTime?
+  dateModified                 DateTime?
+  lastSynced                   DateTime  @default(now())
+  address                      String?
+  bankAccountName              String?
+  bankAccountNo                String?
+  bankRoutingNo                String?
+  cellPhone                    String?
+  city                         String?
+  country                      String?
+  dateOfBirth                  DateTime?
+  dateOfHire                   DateTime?
+  defaultCompanyId             Int?
+  defaultCompanyName           String?
+  defaultZoneId                Int?
+  defaultZoneName              String?
+  emergencyContactAddress      String?
+  emergencyContactAltPhone     String?
+  emergencyContactCellPhone    String?
+  emergencyContactName         String?
+  emergencyContactRelationship String?
+  emergencyContactWorkPhone    String?
+  employmentCost               Decimal?  @db.Decimal(10, 2)
+  extension                    String?
+  fax                          String?
+  isMobility                   Boolean?
+  mobileSecurityGroupId        Int?
+  mobileSecurityGroupName      String?
+  overheadCost                 Decimal?  @db.Decimal(10, 2)
+  postalCode                   String?
+  preferredLanguage            String?
+  preferredNotificationMethod  String?
+  secondaryEmail               String?
+  securityGroupId              Int?
+  securityGroupName            String?
+  state                        String?
+  storageDeviceId              Int?
+  storageDeviceName            String?
+  username                     String?
+  company                      Company   @relation(fields: [companyId], references: [id])
+
+  @@unique([id, companyId])
+  @@index([companyId])
+  @@index([email])
+}
+
+model JobCostCenter {
+  id                      Int       @id
+  jobId                   Int
+  companyId               String
+  costCenterId            Int?
+  costCenterName          String?
+  name                    String?
+  header                  String?
+  totalExTax              Decimal?  @db.Decimal(10, 2)
+  totalIncTax             Decimal?  @db.Decimal(10, 2)
+  materialsCostActual     Decimal?  @db.Decimal(10, 2)
+  laborHoursActual        Decimal?  @db.Decimal(10, 2)
+  percentComplete         Int?
+  dateModified            DateTime?
+  lastSynced              DateTime  @default(now())
+  adjustedActual          Decimal?  @db.Decimal(10, 2)
+  adjustedEstimate        Decimal?  @db.Decimal(10, 2)
+  adjustedRevised         Decimal?  @db.Decimal(10, 2)
+  autoAdjustDates         Boolean?
+  claimedExTaxRemaining   Decimal?  @db.Decimal(10, 2)
+  claimedExTaxToDate      Decimal?  @db.Decimal(10, 2)
+  claimedIncTaxRemaining  Decimal?  @db.Decimal(10, 2)
+  claimedIncTaxToDate     Decimal?  @db.Decimal(10, 2)
+  claimedPercentRemaining Decimal?  @db.Decimal(10, 2)
+  claimedPercentToDate    Decimal?  @db.Decimal(10, 2)
+  commissionActual        Decimal?  @db.Decimal(10, 2)
+  commissionEstimate      Decimal?  @db.Decimal(10, 2)
+  commissionRevised       Decimal?  @db.Decimal(10, 2)
+  description             String?
+  discount                Decimal?  @db.Decimal(10, 2)
+  displayOrder            Int?
+  endDate                 DateTime?
+  grossMarginActual       Decimal?  @db.Decimal(10, 2)
+  grossMarginEstimate     Decimal?  @db.Decimal(10, 2)
+  grossMarginRevised      Decimal?  @db.Decimal(10, 2)
+  grossProfitActual       Decimal?  @db.Decimal(10, 2)
+  grossProfitEstimate     Decimal?  @db.Decimal(10, 2)
+  grossProfitRevised      Decimal?  @db.Decimal(10, 2)
+  invoicePercentage       Decimal?  @db.Decimal(10, 2)
+  invoicedValue           Decimal?  @db.Decimal(10, 2)
+  itemsLocked             Boolean?
+  laborActual             Decimal?  @db.Decimal(10, 2)
+  laborCommitted          Decimal?  @db.Decimal(10, 2)
+  laborEstimate           Decimal?  @db.Decimal(10, 2)
+  laborHoursCommitted     Decimal?  @db.Decimal(10, 2)
+  laborHoursEstimate      Decimal?  @db.Decimal(10, 2)
+  laborHoursRevised       Decimal?  @db.Decimal(10, 2)
+  laborRevised            Decimal?  @db.Decimal(10, 2)
+  lockedIsLocked          Boolean?
+  lockedType              String?
+  materialsCostCommitted  Decimal?  @db.Decimal(10, 2)
+  materialsCostEstimate   Decimal?  @db.Decimal(10, 2)
+  materialsCostRevised    Decimal?  @db.Decimal(10, 2)
+  materialsMarkupActual   Decimal?  @db.Decimal(10, 2)
+  materialsMarkupEstimate Decimal?  @db.Decimal(10, 2)
+  materialsMarkupRevised  Decimal?  @db.Decimal(10, 2)
+  membershipDiscount      Decimal?  @db.Decimal(10, 2)
+  nettMarginActual        Decimal?  @db.Decimal(10, 2)
+  nettMarginEstimate      Decimal?  @db.Decimal(10, 2)
+  nettMarginRevised       Decimal?  @db.Decimal(10, 2)
+  nettProfitActual        Decimal?  @db.Decimal(10, 2)
+  nettProfitEstimate      Decimal?  @db.Decimal(10, 2)
+  nettProfitRevised       Decimal?  @db.Decimal(10, 2)
+  notes                   String?
+  orderNo                 String?
+  overheadActual          Decimal?  @db.Decimal(10, 2)
+  overheadCommitted       Decimal?  @db.Decimal(10, 2)
+  overheadEstimate        Decimal?  @db.Decimal(10, 2)
+  overheadRevised         Decimal?  @db.Decimal(10, 2)
+  plantActual             Decimal?  @db.Decimal(10, 2)
+  plantCommitted          Decimal?  @db.Decimal(10, 2)
+  plantEstimate           Decimal?  @db.Decimal(10, 2)
+  plantHoursActual        Decimal?  @db.Decimal(10, 2)
+  plantHoursEstimate      Decimal?  @db.Decimal(10, 2)
+  plantHoursRevised       Decimal?  @db.Decimal(10, 2)
+  plantRevised            Decimal?  @db.Decimal(10, 2)
+  resourcesCostActual     Decimal?  @db.Decimal(10, 2)
+  resourcesCostCommitted  Decimal?  @db.Decimal(10, 2)
+  resourcesCostEstimate   Decimal?  @db.Decimal(10, 2)
+  resourcesCostRevised    Decimal?  @db.Decimal(10, 2)
+  resourcesMarkupActual   Decimal?  @db.Decimal(10, 2)
+  resourcesMarkupEstimate Decimal?  @db.Decimal(10, 2)
+  resourcesMarkupRevised  Decimal?  @db.Decimal(10, 2)
+  siteId                  Int?
+  siteName                String?
+  stage                   String?
+  startDate               DateTime?
+  stcs                    Decimal?  @db.Decimal(10, 2)
+  taxCodeCode             String?
+  taxCodeId               Int?
+  taxCodeRate             Decimal?  @db.Decimal(10, 2)
+  taxCodeType             String?
+  totalTax                Decimal?  @db.Decimal(10, 2)
+  variation               Boolean?
+  variationApprovalDate   DateTime?
+  veecs                   Decimal?  @db.Decimal(10, 2)
+
+  @@unique([id, jobId, companyId])
+  @@index([jobId])
+  @@index([companyId])
+}
+
+model CustomerAsset {
+  id                       Int                @id
+  companyId                String
+  customerId               Int?
+  siteId                   Int?
+  assetNumber              String?
+  name                     String?
+  manufacturer             String?
+  model                    String?
+  serialNumber             String?
+  status                   String?
+  purchaseValue            Decimal?           @db.Decimal(10, 2)
+  replacementCost          Decimal?           @db.Decimal(10, 2)
+  lastServiceDate          DateTime?
+  nextServiceDate          DateTime?
+  dateModified             DateTime?
+  lastSynced               DateTime           @default(now())
+  archived                 Boolean?
+  assetTypeId              Int?
+  assetTypeName            String?
+  contractEndDate          DateTime?
+  contractExpired          Boolean?
+  contractId               Int?
+  contractName             String?
+  contractNo               String?
+  contractStartDate        DateTime?
+  displayOrder             Int?
+  lastTestDate             DateTime?
+  lastTestResult           String?
+  lastTestServiceLevelId   Int?
+  lastTestServiceLevelName String?
+  parentId                 Int?
+  startDate                DateTime?
+  siteName                 String?
+  customerName             String?
+  testHistories            AssetTestHistory[]
+  company                  Company            @relation(fields: [companyId], references: [id])
+  customer                 Customer?          @relation(fields: [customerId], references: [id])
+  site                     Site?              @relation(fields: [siteId], references: [id])
+
+  @@unique([id, companyId])
+  @@index([companyId])
+  @@index([customerId])
+  @@index([nextServiceDate])
+}
+
+model AssetTestHistory {
+  id               Int           @id @default(autoincrement())
+  assetId          Int
+  companyId        String
+  testStatus       String?
+  passOrFail       String?
+  testDate         DateTime?
+  nextTestDate     DateTime?
+  dateModified     DateTime?
+  lastSynced       DateTime      @default(now())
+  jobDateIssued    DateTime?
+  jobDueDate       DateTime?
+  jobId            Int?
+  quoteDateIssued  DateTime?
+  quoteDueDate     DateTime?
+  quoteId          Int?
+  serviceLevelId   Int?
+  serviceLevelName String?
+  testEmployeeId   Int?
+  testEmployeeName String?
+  testNotes        String?
+  testResult       String?
+  assetType        String?
+  asset            CustomerAsset @relation(fields: [assetId], references: [id])
+
+  @@index([assetId])
+  @@index([companyId])
+  @@index([testDate])
+}
+
+model ContractorJob {
+  id                        Int       @id
+  jobId                     Int?
+  companyId                 String
+  projectType               String?
+  contractorId              Int?
+  contractorName            String?
+  status                    String?
+  contractedAmount          Decimal?  @db.Decimal(10, 2)
+  totalExTax                Decimal?  @db.Decimal(10, 2)
+  dateIssued                DateTime?
+  dueDate                   DateTime?
+  dateModified              DateTime?
+  lastSynced                DateTime  @default(now())
+  contractorContact         String?
+  contractorSupplyMaterials Boolean?
+  createdById               Int?
+  createdByName             String?
+  createdByType             String?
+  createdByTypeId           Int?
+  currency                  String?
+  description               String?
+  exchangeRate              Decimal?  @db.Decimal(10, 6)
+  labor                     Decimal?  @db.Decimal(10, 2)
+  materials                 Decimal?  @db.Decimal(10, 2)
+  retentionAmount           Decimal?  @db.Decimal(10, 2)
+  retentionPerClaim         Decimal?  @db.Decimal(10, 2)
+  retentionPeriodMonths     Int?
+  reverseChargeTax          Decimal?  @db.Decimal(10, 2)
+  taxCodeCode               String?
+  taxCodeId                 Int?
+  taxCodeRate               Decimal?  @db.Decimal(10, 2)
+  taxCodeType               String?
+  totalIncTax               Decimal?  @db.Decimal(10, 2)
+
+  @@index([jobId])
+  @@index([companyId])
+  @@index([status])
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model simpro_raw_asset_service_levels {
+  Name               String?
+  Years              String?
+  Months             String?
+  Days               String?
+  Service_Start_Date String? @map("Service Start Date")
+  Asset_ID           String? @map("Asset ID")
+  Next_Service_Date  String? @map("Next Service Date")
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model simpro_raw_asset_tests {
+  Job_ID                  String? @map("Job ID")
+  Employee_ID             String? @map("Employee ID")
+  Employee_Name           String? @map("Employee Name")
+  Contractor_ID           String? @map("Contractor ID")
+  Contractor_Name         String? @map("Contractor Name")
+  Service_Level_Name      String? @map("Service Level Name")
+  Asset_ID                String? @map("Asset ID")
+  Asset_Type              String? @map("Asset Type")
+  Result                  String?
+  Date_Tested             String? @map("Date Tested")
+  Job_Costcentre_Asset_ID String? @map("Job Costcentre Asset ID")
+  Assets_Test_Notes       String? @map("Assets Test Notes")
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model simpro_raw_assets {
+  Asset_ID            String? @map("Asset ID")
+  Asset_Type          String? @map("Asset Type")
+  Display_Order       String? @map("Display Order")
+  Custom_Fields       String? @map("Custom Fields")
+  Customer_ID         String? @map("Customer ID")
+  Customer_Name       String? @map("Customer Name")
+  Site_ID             String? @map("Site ID")
+  Site_Name           String? @map("Site Name")
+  Contract_ID         String? @map("Contract ID")
+  Contract_Name       String? @map("Contract Name")
+  Parent_Asset_ID     String? @map("Parent Asset ID")
+  Removed             String?
+  Top_Parent_Asset_ID String? @map("Top Parent Asset ID")
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model simpro_raw_job_response_times {
+  Job_Response_Time_ID   String? @map("Job Response Time ID")
+  Job_ID                 String? @map("Job ID")
+  Response_Time_ID       String? @map("Response Time ID")
+  Created                String?
+  Due                    String?
+  Job_Start_Time         String? @map("Job Start Time")
+  Response_Time_Achieved String? @map("Response Time Achieved")
+
+  @@ignore
+}
+
+model simpro_report_asset_service_levels {
+  id                 Int       @id @default(autoincrement())
+  company_id         String
+  asset_id           Int?
+  service_level_name String?
+  interval_years     Int?
+  interval_months    Int?
+  interval_days      Int?
+  service_start_date DateTime? @db.Date
+  next_service_date  DateTime? @db.Date
+  last_synced        DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([asset_id], map: "idx_service_levels_asset")
+  @@index([company_id], map: "idx_service_levels_company")
+  @@index([next_service_date], map: "idx_service_levels_next_due")
+  @@index([next_service_date], map: "idx_service_levels_next_service")
+}
+
+model simpro_report_asset_tests {
+  id                 Int       @id @default(autoincrement())
+  company_id         String
+  asset_id           Int?
+  asset_type         String?
+  job_id             Int?
+  employee_id        Int?
+  employee_name      String?
+  contractor_id      Int?
+  contractor_name    String?
+  service_level_name String?
+  test_result        String?
+  test_date          DateTime? @db.Date
+  test_notes         String?
+  last_synced        DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([asset_id], map: "idx_asset_tests_asset")
+  @@index([company_id], map: "idx_asset_tests_company")
+  @@index([test_date], map: "idx_asset_tests_test_date")
+}
+
+model simpro_report_assets {
+  id                  Int       @id @default(autoincrement())
+  company_id          String
+  asset_id            Int?
+  asset_type          String?
+  display_order       Int?
+  customer_id         Int?
+  customer_name       String?
+  site_id             Int?
+  site_name           String?
+  contract_id         Int?
+  contract_name       String?
+  parent_asset_id     Int?
+  top_parent_asset_id Int?
+  removed             Boolean?
+  custom_fields       String?
+  last_synced         DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([asset_id], map: "idx_assets_asset")
+  @@index([company_id], map: "idx_assets_company")
+  @@index([site_id], map: "idx_assets_site")
+}
+
+model simpro_report_job_response_times {
+  id                     Int       @id @default(autoincrement())
+  company_id             String
+  job_response_time_id   Int?
+  job_id                 Int?
+  response_time_id       Int?
+  created_at             DateTime? @db.Timestamp(6)
+  due_at                 DateTime? @db.Timestamp(6)
+  job_start_time         DateTime? @db.Timestamp(6)
+  response_time_achieved Boolean?
+  response_minutes       Int?
+  last_synced            DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([company_id], map: "idx_job_response_company")
+  @@index([due_at], map: "idx_job_response_due")
+  @@index([job_id], map: "idx_job_response_job")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model simpro_raw_invoice_jobs {
+  Job_ID     String? @map("Job ID")
+  Invoice_ID String? @map("Invoice ID")
+  Invoice_No String? @map("Invoice No")
+  Company_ID String? @map("Company ID")
+  Order_No   String? @map("Order No")
+  Status     String?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model simpro_raw_invoices {
+  Invoice_ID           String? @map("Invoice ID")
+  Invoice_No           String? @map("Invoice No")
+  Company_ID           String? @map("Company ID")
+  Invoice_Type         String? @map("Invoice Type")
+  Claim_No             String? @map("Claim No")
+  Date_Issued          String? @map("Date Issued")
+  Period_Start         String? @map("Period Start")
+  Period_End           String? @map("Period End")
+  Due_Date             String? @map("Due Date")
+  Stage                String?
+  Per_Item             String? @map("Per Item")
+  Category             String?
+  Comment              String?
+  Total_Price_Ex       String? @map("Total Price Ex")
+  Total_Price_Inc      String? @map("Total Price Inc")
+  Total_Discount       String? @map("Total Discount")
+  Total_Retention_Ex   String? @map("Total Retention Ex")
+  Total_Retention_Inc  String? @map("Total Retention Inc")
+  Credit               String?
+  Job_ID               String? @map("Job ID")
+  Recurring_Invoice_ID String? @map("Recurring Invoice ID")
+  Customer_ID          String? @map("Customer ID")
+  Customer             String?
+  Customer_Contract_ID String? @map("Customer Contract ID")
+  Recurring            String?
+  Voided               String?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model simpro_raw_response_times {
+  Response_Time_ID String? @map("Response Time ID")
+  Name             String?
+  Removed          String?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model simpro_raw_schedules {
+  Schedule_ID          String? @map("Schedule ID")
+  Schedule_Block_ID    String? @map("Schedule Block ID")
+  Date                 String?
+  Start_Time           String? @map("Start Time")
+  End_Time             String? @map("End Time")
+  Hours                String?
+  Schedule_Rate        String? @map("Schedule Rate")
+  Employee_ID          String? @map("Employee ID")
+  Employee_Name        String? @map("Employee Name")
+  Contractor_ID        String? @map("Contractor ID")
+  Contractor_Name      String? @map("Contractor Name")
+  Type                 String?
+  Pay_Rate_Cost        String? @map("Pay Rate Cost")
+  Overhead_Cost        String? @map("Overhead Cost")
+  Employment_Cost      String? @map("Employment Cost")
+  Job_ID               String? @map("Job ID")
+  Lead_ID              String? @map("Lead ID")
+  Quote_ID             String? @map("Quote ID")
+  Job_Costcentre_ID    String? @map("Job Costcentre ID")
+  Quote_Cost_Centre_ID String? @map("Quote Cost Centre ID")
+  Plant_ID             String? @map("Plant ID")
+  Plant_Name           String? @map("Plant Name")
+
+  @@ignore
+}
+
+model simpro_report_invoice_jobs {
+  id                 Int       @id @default(autoincrement())
+  company_id         String
+  invoice_id         Int?
+  invoice_no         String?
+  job_id             Int?
+  order_no           String?
+  job_invoice_status String?
+  last_synced        DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([company_id], map: "idx_invoice_jobs_company")
+  @@index([invoice_id], map: "idx_invoice_jobs_invoice")
+  @@index([job_id], map: "idx_invoice_jobs_job")
+}
+
+model simpro_report_invoices {
+  id              Int       @id @default(autoincrement())
+  company_id      String
+  invoice_id      Int?
+  invoice_no      String?
+  invoice_type    String?
+  job_id          Int?
+  customer_id     Int?
+  customer_name   String?
+  date_issued     DateTime? @db.Date
+  due_date        DateTime? @db.Date
+  period_start    DateTime? @db.Date
+  period_end      DateTime? @db.Date
+  stage           String?
+  total_price_ex  Decimal?  @db.Decimal
+  total_price_inc Decimal?  @db.Decimal
+  total_discount  Decimal?  @db.Decimal
+  is_credit       Boolean?
+  is_recurring    Boolean?
+  is_voided       Boolean?
+  last_synced     DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([company_id], map: "idx_invoices_company")
+  @@index([date_issued], map: "idx_invoices_date")
+  @@index([invoice_id], map: "idx_invoices_invoice")
+}
+
+model simpro_report_response_times {
+  id               Int       @id @default(autoincrement())
+  company_id       String
+  response_time_id Int
+  name             String?
+  removed          Boolean?
+  last_synced      DateTime? @default(now()) @db.Timestamp(6)
+
+  @@unique([company_id, response_time_id])
+  @@index([company_id], map: "idx_response_times_company")
+  @@index([removed], map: "idx_response_times_removed")
+}
+
+model simpro_report_schedules {
+  id                  Int       @id @default(autoincrement())
+  company_id          String
+  schedule_id         Int?
+  schedule_block_id   Int?
+  schedule_date       DateTime? @db.Date
+  start_time          DateTime? @db.Time(6)
+  end_time            DateTime? @db.Time(6)
+  hours               Decimal?  @db.Decimal
+  schedule_rate       String?
+  employee_id         Int?
+  employee_name       String?
+  contractor_id       Int?
+  contractor_name     String?
+  type                String?
+  pay_rate_cost       Decimal?  @db.Decimal
+  overhead_cost       Decimal?  @db.Decimal
+  employment_cost     Decimal?  @db.Decimal
+  job_id              Int?
+  lead_id             Int?
+  quote_id            Int?
+  job_costcentre_id   Int?
+  quote_costcentre_id Int?
+  plant_id            Int?
+  plant_name          String?
+  last_synced         DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([company_id], map: "idx_schedules_company")
+  @@index([schedule_date], map: "idx_schedules_date")
+  @@index([job_id], map: "idx_schedules_job")
+}
+
+model simpro_report_purchase_orders {
+  Order_No       Int      @id
+  Storage_Device String
+  Date_Issued    DateTime
+  Supplier       String
+  Supplier_ID    Int
+  Quote_No       String?
+  Reference      String?
+ Job_ID         Int?
+  Date_Due       DateTime?
+  Status         String
+  Stage          String
+ Sub_Total      Decimal?  @db.Decimal(10, 2)
+  Total          Decimal?  @db.Decimal(10, 2)
+  Tax            Decimal?  @db.Decimal(10, 2)
+  Pending        Boolean  @default(false)
+  Received       Boolean  @default(false)
+  Completed      Boolean  @default(false)
+
+  @@map("simpro_report_purchase_orders")
+}
+
+
+
+////////////////////////////////////////////////////////////
+// REPORTING TABLES
+// Flat reporting snapshots from Simpro.
+// No relations.
+// No foreign keys.
+// No composite keys.
+// No unique constraints.
+// Only Prisma-required primary key (@id).
+////////////////////////////////////////////////////////////
+
+
+enum SyncStatus {
+  pending
+  running
+  completed
+  failed
+  cancelled
+}
+
+model Sync {
+  id          String      @id @default(cuid())
+
+  companyId   String
+  provider    String      // simPRO, Fixflo, etc.
+
+  status      SyncStatus
+
+  startedAt   DateTime    @default(now())
+  completedAt DateTime?
+
+  durationMs  Int?
+
+  entity     String // Customers, Jobs, Sites, Assets
+
+  recordsRead Int         @default(0)
+  recordsSaved Int        @default(0)
+  recordsUpdated Int      @default(0)
+  recordsFailed Int       @default(0)
+
+  errorMessage String?
+
+  company Company @relation(fields: [companyId], references: [id])
+  syncEntities SyncEntity[]
+
+  @@index([companyId, startedAt])
+}
+
+model SyncEntity {
+  id         String @id @default(cuid())
+
+  syncId     String
+
+  entity     String // Customers, Jobs, Sites, Assets
+
+  records    Int
+
+  status     SyncStatus
+
+  error      String?
+
+  startedAt  DateTime @default(now())
+  completedAt DateTime?
+
+  sync Sync @relation(fields: [syncId], references: [id], onDelete: Cascade)
+
+  @@index([syncId])
+}
+
+model SyncEntityConfig {
+  id String @id @default(cuid())
+
+  companyId String
+  provider  String // simPRO, Fixflo
+
+  entity String // Customers, Jobs, Sites, Assets
+
+  totalRecords Int @default(0)
+
+  lastSyncAt     DateTime?
+  lastSyncStatus SyncStatus?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, provider, entity])
+  @@index([companyId])
+}
+
+model CsvEntityConfig {
+  id              String     @id @default(cuid())
+  companyId       String
+  entity          String
+  totalRecords    Int        @default(0)
+  lastUploadAt    DateTime?
+  lastUploadStatus SyncStatus?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, entity])
+  @@index([companyId])
+}
+
+/// Customer reporting snapshot
+model ReportCustomer {
+  id                  String    @id @default(cuid())
+
+  companyId           String
+
+  simproCustomerId    Int?
+  companyName         String?
+
+  phone               String?
+  altPhone            String?
+  email               String?
+  website             String?
+
+  address             String?
+  city                String?
+  state               String?
+  postalCode          String?
+  country             String?
+
+  billingAddress      String?
+  billingCity         String?
+  billingState        String?
+  billingPostalCode   String?
+  billingCountry      String?
+
+  customerType        String?
+
+  amountOwing         Decimal?  @db.Decimal(10, 2)
+  creditLimit         Decimal?  @db.Decimal(10, 2)
+
+  doNotCall           Boolean?
+  onStop              Boolean?
+  archived            Boolean?
+
+  accountManagerId    Int?
+  accountManagerName  String?
+
+  customerProfileId   Int?
+  customerProfileName String?
+
+  customerGroupId     Int?
+  customerGroupName   String?
+
+  currency            String?
+
+  paymentMethodId     Int?
+  paymentMethodName   String?
+
+  paymentTermId       Int?
+  paymentTermDays     Int?
+  paymentTermType     String?
+
+  profileNotes        String?
+
+  dateCreated         DateTime?
+  dateModified        DateTime?
+
+  syncedAt            DateTime? @default(now())
+
+  @@map("report_customers")
+}
+
+/// Site reporting snapshot
+model ReportSite {
+  id                       String    @id @default(cuid())
+
+  companyId                String
+
+  simproSiteId             Int?
+  simproCustomerId         Int?
+
+  customerName             String?
+
+  name                     String?
+
+  address                  String?
+  city                     String?
+  state                    String?
+  postalCode               String?
+  country                  String?
+  suburb                   String?
+
+  latitude                 Decimal?  @db.Decimal(10, 8)
+  longitude                Decimal?  @db.Decimal(11, 8)
+
+  billingAddress           String?
+  billingCity              String?
+  billingState             String?
+  billingPostalCode        String?
+  billingCountry           String?
+
+  primaryContactId         Int?
+  primaryContactGivenName  String?
+  primaryContactFamilyName String?
+  primaryContactEmail      String?
+  primaryContactWorkPhone  String?
+  primaryContactCellPhone  String?
+
+  archived                 Boolean?
+
+  zoneId                   Int?
+  zoneName                 String?
+
+  stcZone                  Int?
+  veecZone                 String?
+
+  dateCreated              DateTime?
+  dateModified             DateTime?
+
+  syncedAt                 DateTime? @default(now())
+
+  @@map("report_sites")
+}
+
+/// Employee reporting snapshot
+model ReportEmployee {
+  id               String    @id @default(cuid())
+
+  companyId        String
+
+  simproEmployeeId Int?
+
+  name             String?
+  position         String?
+
+  email            String?
+  secondaryEmail   String?
+
+  workPhone        String?
+  cellPhone        String?
+
+  address          String?
+  city             String?
+  state            String?
+  postalCode       String?
+  country          String?
+
+  payRate          Decimal?  @db.Decimal(10, 2)
+  employmentCost   Decimal?  @db.Decimal(10, 2)
+  overheadCost     Decimal?  @db.Decimal(10, 2)
+
+  isSalesperson    Boolean?
+  isProjectManager Boolean?
+
+  archived         Boolean?
+
+  dateOfBirth      DateTime?
+  dateOfHire       DateTime?
+
+  dateCreated      DateTime?
+  dateModified     DateTime?
+
+  syncedAt         DateTime? @default(now())
+
+  @@map("report_employees")
+}
+
+/// Asset reporting snapshot
+model ReportAsset {
+  id               String    @id @default(cuid())
+
+  companyId        String
+
+  simproAssetId    Int?
+
+  assetType        String?
+
+  simproCustomerId Int?
+  customerName     String?
+
+  simproSiteId     Int?
+  siteName         String?
+
+  contractId       Int?
+  contractName     String?
+
+  parentAssetId    Int?
+  topParentAssetId Int?
+
+  displayOrder     Int?
+
+  removed          Boolean?
+
+  customFields     String?
+
+  syncedAt         DateTime? @default(now())
+
+  @@map("report_assets")
+}
+
+/// Asset service level reporting snapshot
+model ReportAssetServiceLevel {
+  id               String    @id @default(cuid())
+
+  companyId        String
+
+  simproAssetId    Int?
+
+  serviceLevelName String?
+
+  intervalYears    Int?
+  intervalMonths   Int?
+  intervalDays     Int?
+
+  serviceStartDate DateTime?
+  nextServiceDate  DateTime?
+
+  syncedAt         DateTime? @default(now())
+
+  @@map("report_asset_service_levels")
+}
+
+/// Job reporting snapshot
+model ReportJob {
+  id                        String    @id @default(cuid())
+
+  companyId                 String
+
+  simproJobId               Int?
+
+  reference                 String?
+  name                      String?
+  description               String?
+  notes                     String?
+  orderNo                   String?
+  requestNo                 String?
+
+  simproCustomerId          Int?
+  customerName              String?
+  customerGivenName         String?
+  customerFamilyName        String?
+
+  customerContactId         Int?
+  customerContactGivenName  String?
+  customerContactFamilyName String?
+
+  customerContractId        Int?
+  customerContractName      String?
+  customerContractNo        String?
+  customerContractStartDate DateTime?
+  customerContractEndDate   DateTime?
+
+  simproSiteId              Int?
+  siteName                  String?
+
+  siteContactId             Int?
+  siteContactGivenName      String?
+  siteContactFamilyName     String?
+
+  stage                     String?
+  statusId                  Int?
+  statusName                String?
+  statusColor               String?
+
+  jobType                   String?
+  type                      String?
+  priority                  String?
+
+  isVariation               Boolean?
+  isRetentionEnabled        Boolean?
+
+  technicianId              Int?
+  technicianName            String?
+
+  projectManagerId          Int?
+  projectManagerName        String?
+
+  salespersonId             Int?
+  salespersonName           String?
+
+  accountManagerComments    String?
+
+  responseTimeId            Int?
+  responseTimeName          String?
+  responseTimeDays          Int?
+  responseTimeHours         Int?
+  responseTimeMinutes       Int?
+
+  totalExTax                Decimal?  @db.Decimal(10, 2)
+  totalTax                  Decimal?  @db.Decimal(10, 2)
+  totalIncTax               Decimal?  @db.Decimal(10, 2)
+
+  discount                  Decimal?  @db.Decimal(10, 2)
+  invoicedValue             Decimal?  @db.Decimal(10, 2)
+  invoicePercentage         Decimal?  @db.Decimal(10, 2)
+
+  grossProfitActual         Decimal?  @db.Decimal(10, 2)
+  grossMarginActual         Decimal?  @db.Decimal(10, 2)
+
+  laborActual               Decimal?  @db.Decimal(10, 2)
+  laborEstimate             Decimal?  @db.Decimal(10, 2)
+  laborHoursActual          Decimal?  @db.Decimal(10, 2)
+  laborHoursEstimate        Decimal?  @db.Decimal(10, 2)
+
+  materialsCostActual       Decimal?  @db.Decimal(10, 2)
+  materialsCostEstimate     Decimal?  @db.Decimal(10, 2)
+
+  convertedFromQuoteId      Int?
+  convertedFromDate         DateTime?
+
+  archived                  Boolean?
+
+  dueDate                   DateTime?
+  dueTime                   String?
+  dateIssued                DateTime?
+  dateCreated               DateTime?
+  dateScheduled             DateTime?
+  dateCompleted             DateTime?
+  dateInvoiced              DateTime?
+  dateModified              DateTime?
+
+  syncedAt                  DateTime? @default(now())
+
+  @@map("report_jobs")
+}
+
+/// Quote reporting snapshot
+model ReportQuote {
+  id                        String    @id @default(cuid())
+
+  companyId                 String
+
+  simproQuoteId             Int?
+
+  reference                 String?
+  name                      String?
+  description               String?
+  notes                     String?
+  orderNo                   String?
+  requestNo                 String?
+
+  simproCustomerId          Int?
+  customerName              String?
+  customerGivenName         String?
+  customerFamilyName        String?
+  customerStage             String?
+
+  customerContactId         Int?
+  customerContactGivenName  String?
+  customerContactFamilyName String?
+
+  simproSiteId              Int?
+  siteName                  String?
+
+  siteContactId             Int?
+  siteContactGivenName      String?
+  siteContactFamilyName     String?
+
+  simproJobId               Int?
+  jobNo                     String?
+  linkedJobId               Int?
+
+  stage                     String?
+  statusId                  Int?
+  statusName                String?
+  statusColor               String?
+
+  type                      String?
+
+  isVariation               Boolean?
+  isClosed                  Boolean?
+
+  validityDays              Int?
+
+  technicianId              Int?
+  technicianName            String?
+
+  projectManagerId          Int?
+  projectManagerName        String?
+
+  salespersonId             Int?
+  salespersonName           String?
+
+  archiveReasonId           Int?
+  archiveReasonName         String?
+
+  convertedToJob            Boolean?
+  convertedFromLeadId       Int?
+  convertedFromLeadName     String?
+
+  totalExTax                Decimal?  @db.Decimal(10, 2)
+  totalTax                  Decimal?  @db.Decimal(10, 2)
+  totalIncTax               Decimal?  @db.Decimal(10, 2)
+
+  discount                  Decimal?  @db.Decimal(10, 2)
+
+  forecastMonth             Int?
+  forecastYear              Int?
+  forecastPercent           Decimal?  @db.Decimal(10, 2)
+
+  laborEstimate             Decimal?  @db.Decimal(10, 2)
+  laborHoursEstimate        Decimal?  @db.Decimal(10, 2)
+
+  materialsCostEstimate     Decimal?  @db.Decimal(10, 2)
+
+  dueDate                   DateTime?
+  dateIssued                DateTime?
+  dateSent                  DateTime?
+  dateAccepted              DateTime?
+  dateApproved              DateTime?
+  dateExpires               DateTime?
+  dateCreated               DateTime?
+  dateModified              DateTime?
+
+  syncedAt                  DateTime? @default(now())
+
+  @@map("report_quotes")
+}
+
+/// Job cost centre reporting snapshot
+model ReportJobCostCentre {
+  id                    String    @id @default(cuid())
+
+  companyId             String
+
+  simproJobCostCentreId Int?
+  simproJobId           Int?
+
+  simproSiteId          Int?
+  siteName              String?
+
+  costCentreId          Int?
+  costCentreName        String?
+
+  name                  String?
+  header                String?
+  description           String?
+  notes                 String?
+  orderNo               String?
+
+  stage                 String?
+  type                  String?
+
+  displayOrder          Int?
+  percentComplete       Int?
+
+  variation             Boolean?
+  variationApprovalDate DateTime?
+
+  totalExTax            Decimal?  @db.Decimal(10, 2)
+  totalIncTax           Decimal?  @db.Decimal(10, 2)
+  totalTax              Decimal?  @db.Decimal(10, 2)
+
+  discount              Decimal?  @db.Decimal(10, 2)
+  invoicedValue         Decimal?  @db.Decimal(10, 2)
+  invoicePercentage     Decimal?  @db.Decimal(10, 2)
+
+  claimedExTaxToDate    Decimal?  @db.Decimal(10, 2)
+  claimedIncTaxToDate   Decimal?  @db.Decimal(10, 2)
+  claimedPercentToDate  Decimal?  @db.Decimal(10, 2)
+
+  laborActual           Decimal?  @db.Decimal(10, 2)
+  laborEstimate         Decimal?  @db.Decimal(10, 2)
+  laborHoursActual      Decimal?  @db.Decimal(10, 2)
+  laborHoursEstimate    Decimal?  @db.Decimal(10, 2)
+
+  materialsCostActual   Decimal?  @db.Decimal(10, 2)
+  materialsCostEstimate Decimal?  @db.Decimal(10, 2)
+
+  grossProfitActual     Decimal?  @db.Decimal(10, 2)
+  grossMarginActual     Decimal?  @db.Decimal(10, 2)
+
+  startDate             DateTime?
+  endDate               DateTime?
+  dateModified          DateTime?
+
+  syncedAt              DateTime? @default(now())
+
+  @@map("report_job_cost_centres")
+}
+
+/// Contractor job reporting snapshot
+model ReportContractorJob {
+  id                        String    @id @default(cuid())
+
+  companyId                 String
+
+  simproContractorJobId     Int?
+  simproJobId               Int?
+
+  contractorId              Int?
+  contractorName            String?
+  contractorContact         String?
+  contractorSupplyMaterials Boolean?
+
+  projectType               String?
+  status                    String?
+  description               String?
+  currency                  String?
+
+  exchangeRate              Decimal?  @db.Decimal(10, 6)
+
+  contractedAmount          Decimal?  @db.Decimal(10, 2)
+
+  totalExTax                Decimal?  @db.Decimal(10, 2)
+  totalIncTax               Decimal?  @db.Decimal(10, 2)
+
+  labor                     Decimal?  @db.Decimal(10, 2)
+  materials                 Decimal?  @db.Decimal(10, 2)
+
+  retentionAmount           Decimal?  @db.Decimal(10, 2)
+  retentionPerClaim         Decimal?  @db.Decimal(10, 2)
+  retentionPeriodMonths     Int?
+
+  reverseChargeTax          Decimal?  @db.Decimal(10, 2)
+
+  taxCodeId                 Int?
+  taxCodeCode               String?
+  taxCodeRate               Decimal?  @db.Decimal(10, 2)
+  taxCodeType               String?
+
+  dateIssued                DateTime?
+  dueDate                   DateTime?
+  dateModified              DateTime?
+
+  syncedAt                  DateTime? @default(now())
+
+  @@map("report_contractor_jobs")
+}
+
+/// Invoice reporting snapshot
+model ReportInvoice {
+  id                  String    @id @default(cuid())
+
+  companyId           String
+
+  simproInvoiceId     Int?
+  invoiceNo           String?
+
+  invoiceType         String?
+
+  simproCustomerId    Int?
+  customerName        String?
+
+  simproJobId         Int?
+  recurringInvoiceId  Int?
+  customerContractId  Int?
+
+  claimNo             String?
+  stage               String?
+
+  description         String?
+
+  totalExTax          Decimal?  @db.Decimal(10, 2)
+  totalIncTax         Decimal?  @db.Decimal(10, 2)
+  totalDiscount       Decimal?  @db.Decimal(10, 2)
+  totalRetentionExTax Decimal?  @db.Decimal(10, 2)
+  totalRetentionIncTax Decimal? @db.Decimal(10, 2)
+
+  isCredit            Boolean?
+  isRecurring         Boolean?
+  isVoided            Boolean?
+  perItem             Boolean?
+
+  dateIssued          DateTime?
+  periodStart         DateTime?
+  periodEnd           DateTime?
+  dueDate             DateTime?
+
+  dateCreated         DateTime?
+  dateModified        DateTime?
+
+  syncedAt            DateTime? @default(now())
+
+  @@map("report_invoices")
+}
+
+/// Invoice job reporting snapshot
+model ReportInvoiceJob {
+  id              String    @id @default(cuid())
+
+  companyId       String
+
+  simproJobId     Int?
+  simproInvoiceId Int?
+  invoiceNo       String?
+
+  stage           String?
+  status          String?
+
+  syncedAt        DateTime? @default(now())
+
+  @@map("report_invoice_jobs")
+}
+
+/// Response time reporting snapshot
+model ReportResponseTime {
+  id               String    @id @default(cuid())
+
+  companyId        String
+
+  simproResponseTimeId Int?
+
+  name             String?
+
+  archived         Boolean?
+
+  syncedAt         DateTime? @default(now())
+
+  @@map("report_response_times")
+}
+
+/// Schedule reporting snapshot
+model ReportSchedule {
+  id                  String    @id @default(cuid())
+
+  companyId           String
+
+  simproScheduleId    Int?
+
+  type                String?
+  reference           String?
+  notes               String?
+  totalHours          Decimal?  @db.Decimal(10, 2)
+
+  staffId             Int?
+  staffName           String?
+  staffType           String?
+
+  simproJobId         Int?
+  simproJobCostCentreId Int?
+  simproSectionId     Int?
+
+  scheduleDate        DateTime?
+
+  blockStartTime      DateTime?
+  blockEndTime        DateTime?
+  blockHours          Decimal?  @db.Decimal(10, 2)
+  scheduleRateId      Int?
+  scheduleRateName    String?
+
+  dateModified        DateTime?
+
+  syncedAt            DateTime? @default(now())
+
+  @@map("report_schedules")
+}
+
+/// Contractor invoice reporting snapshot
+model ReportContractorInvoice {
+  id                       String    @id @default(cuid())
+
+  companyId                String
+
+  simproContractorInvoiceId Int?
+
+  invoiceNo                String?
+
+  contractorId             Int?
+  contractorName           String?
+
+  contractorJobIds        Int?
+
+  totalExTax               Decimal?  @db.Decimal(10, 2)
+  totalIncTax              Decimal?  @db.Decimal(10, 2)
+
+  currency                 String?
+  exchangeRate             Decimal?  @db.Decimal(10, 6)
+
+  isPaid                   Boolean?
+
+  cisDeduction             Decimal?  @db.Decimal(10, 2)
+  rctDeduction             Decimal?  @db.Decimal(10, 2)
+
+  dateIssued               DateTime?
+  datePaid                 DateTime?
+  dateApproved             DateTime?
+  dueDate                  DateTime?
+  dateModified             DateTime?
+
+  syncedAt                 DateTime? @default(now())
+
+  @@map("report_contractor_invoices")
+}
+
+/// Asset test history reporting snapshot
+model ReportAssetTest {
+  id               String    @id @default(cuid())
+
+  companyId        String
+
+  simproAssetId    Int?
+  assetType        String?
+
+  simproCustomerId Int?
+  customerName     String?
+
+  simproSiteId     Int?
+  siteName         String?
+
+  simproJobId      Int?
+  jobReference     String?
+  jobDateIssued    DateTime?
+  jobDueDate       DateTime?
+
+  quoteId          Int?
+  quoteDateIssued  DateTime?
+  quoteDueDate     DateTime?
+
+  employeeId       Int?
+  employeeName     String?
+
+  contractorId     Int?
+  contractorName   String?
+
+  serviceLevelId   Int?
+  serviceLevelName String?
+
+  testStatus       String?
+  passOrFail       String?
+  testResult       String?
+  testNotes        String?
+
+  testDate         DateTime?
+  nextTestDate     DateTime?
+
+  dateModified     DateTime?
+
+  syncedAt         DateTime? @default(now())
+
+  @@map("report_asset_test_histories")
+}
+
+/// Job response time reporting snapshot
+model ReportJobResponseTime {
+  id               String    @id @default(cuid())
+
+  companyId        String
+
+  simproJobId      Int?
+  jobReference     String?
+  jobName          String?
+
+  simproCustomerId Int?
+  customerName     String?
+
+  simproSiteId     Int?
+  siteName         String?
+
+  responseTimeName String?
+
+  createdAt        DateTime?
+  dueAt            DateTime?
+  jobStartTime     DateTime?
+
+  achieved         Boolean?
+
+  syncedAt         DateTime? @default(now())
+
+  @@map("report_job_response_times")
+}
+
