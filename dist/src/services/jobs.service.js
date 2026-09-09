@@ -19,7 +19,7 @@ async function fetchJobIds(apiUrl, apiKey, simproCompanyId, archived) {
             throw new Error(`Failed fetching job list (page ${page}): ${res.status}`);
         }
         const data = await res.json();
-        const items = Array.isArray(data) ? data : data.items ?? [];
+        const items = Array.isArray(data) ? data : (data.items ?? []);
         if (!items.length)
             break;
         for (const item of items) {
@@ -30,7 +30,7 @@ async function fetchJobIds(apiUrl, apiKey, simproCompanyId, archived) {
             break;
         page++;
     }
-    return [...ids].slice(0, 20);
+    return [...ids];
 }
 // =====================================================
 // PHASE 2 — FETCH JOB DETAIL
@@ -70,6 +70,8 @@ async function upsertJob(companyId, job, archived) {
     });
 }
 function transformSimproJob(job) {
+    const customFields = job.CustomFields ?? [];
+    const accountManagerField = customFields.find((cf) => cf.CustomField?.Name === "Account Manager Comments");
     return {
         // BASIC INFO
         type: job.Type ?? null,
@@ -222,6 +224,7 @@ function transformSimproJob(job) {
         // FLAGS
         autoAdjustStatus: job.AutoAdjustStatus ?? null,
         isRetentionEnabled: job.IsRetentionEnabled ?? null,
+        accountManagerComments: accountManagerField?.Value ?? null,
         // META
         lastSynced: new Date(),
     };
@@ -232,7 +235,7 @@ async function syncJobs(companyId, simproCompanyId, includeArchived = false, onP
         where: {
             companyId_provider: {
                 companyId,
-                provider: "simpro",
+                provider: "Simpro",
             },
         },
     });
@@ -246,7 +249,7 @@ async function syncJobs(companyId, simproCompanyId, includeArchived = false, onP
         ? await fetchJobIds(apiUrl, apiKey, simproCompanyId, true)
         : [];
     const total = activeIds.length + archivedIds.length;
-    const limiter = new rate_limiter_1.RateLimiter({ concurrency: 5, delayMs: 400 });
+    const limiter = new rate_limiter_1.RateLimiter({ concurrency: 5, delayMs: 500 });
     const activeJobs = await limiter.processBatch(activeIds, (id) => fetchJobDetail(apiUrl, apiKey, simproCompanyId, id), onProgress);
     const archivedJobs = includeArchived
         ? await limiter.processBatch(archivedIds, (id) => fetchJobDetail(apiUrl, apiKey, simproCompanyId, id), onProgress)
@@ -257,11 +260,7 @@ async function syncJobs(companyId, simproCompanyId, includeArchived = false, onP
     const errors = [];
     for (const job of activeJobs) {
         try {
-            const exists = await prisma_1.prisma.job.findUnique({
-                where: { id_companyId: { id: job.ID, companyId } },
-            });
             await upsertJob(companyId, job, false);
-            exists ? updated++ : created++;
         }
         catch (err) {
             errors.push({ jobId: job.ID, error: err.message });

@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const sync_controller_1 = require("../controllers/sync.controller");
+const getDashboardRouter = (0, express_1.Router)();
+getDashboardRouter.get("/dashboard/:companyId", sync_controller_1.syncController.getDashboard);
+getDashboardRouter.get("/active/:companyId", sync_controller_1.syncController.getActive);
+getDashboardRouter.get("/:syncId", sync_controller_1.syncController.getById);
+getDashboardRouter.post("/:syncId/cancel", sync_controller_1.syncController.cancel);
+exports.default = getDashboardRouter;

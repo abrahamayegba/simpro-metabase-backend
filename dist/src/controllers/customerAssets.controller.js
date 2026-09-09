@@ -1,34 +1,32 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.jobSyncController = void 0;
-const jobs_service_1 = require("../services/jobs.service");
-exports.jobSyncController = {
+exports.customerAssetController = void 0;
+const customerAssets_service_1 = require("../services/customerAssets.service");
+exports.customerAssetController = {
     // =========================================
-    // SYNC JOBS (USER CONTROLS ARCHIVED)
+    // SYNC CUSTOMER ASSETS
     // =========================================
-    syncJobs: async (req, res) => {
+    syncCustomerAssets: async (req, res) => {
         try {
-            const { companyId, includeArchived, simproCompanyId } = req.body;
+            const { companyId, simproCompanyId } = req.body;
             if (!companyId || !simproCompanyId) {
                 return res.status(400).json({
                     success: false,
                     message: "companyId and simproCompanyId are required",
                 });
             }
-            const result = await (0, jobs_service_1.syncJobs)(companyId, simproCompanyId, Boolean(includeArchived));
+            const result = await (0, customerAssets_service_1.syncCustomerAssets)(companyId, simproCompanyId);
             return res.status(200).json({
                 success: true,
-                message: includeArchived
-                    ? "Jobs (including archived) synced successfully"
-                    : "Active jobs synced successfully",
+                message: "Customer assets synced successfully",
                 result,
             });
         }
         catch (error) {
-            console.error("syncJobs error:", error);
+            console.error("syncCustomerAssets error:", error);
             return res.status(500).json({
                 success: false,
-                message: error.message ?? "Failed to sync jobs",
+                message: error.message ?? "Failed to sync customer assets",
             });
         }
     },

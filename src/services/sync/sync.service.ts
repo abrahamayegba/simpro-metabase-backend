@@ -140,9 +140,26 @@ export const getSyncById = async (id: string) => {
 };
 
 export const cancelSync = async (syncId: string) => {
-  await prisma.sync.update({
+  const sync = await prisma.sync.findUnique({
     where: { id: syncId },
-    data: { status: SyncStatus.cancelled, completedAt: new Date() },
+  });
+
+  if (!sync) {
+    throw new Error("Sync not found");
+  }
+
+  if (sync.status !== SyncStatus.pending && sync.status !== SyncStatus.running) {
+    return sync;
+  }
+
+  return prisma.sync.update({
+    where: { id: syncId },
+    data: {
+      status: SyncStatus.cancelled,
+      completedAt: new Date(),
+      durationMs: Date.now() - sync.startedAt.getTime(),
+      errorMessage: "Cancelled by user",
+    },
   });
 };
 
@@ -154,6 +171,16 @@ export const getActiveSyncForEntity = async (
     where: {
       companyId,
       entity,
+      status: { in: [SyncStatus.pending, SyncStatus.running] },
+    },
+    orderBy: { startedAt: "desc" },
+  });
+};
+
+export const getActiveSyncs = async (companyId: string) => {
+  return prisma.sync.findMany({
+    where: {
+      companyId,
       status: { in: [SyncStatus.pending, SyncStatus.running] },
     },
     orderBy: { startedAt: "desc" },

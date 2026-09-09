@@ -1,34 +1,32 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.jobSyncController = void 0;
-const jobs_service_1 = require("../services/jobs.service");
-exports.jobSyncController = {
+exports.jobCostCenterSyncController = void 0;
+const jobCostCenter_service_1 = require("../services/jobCostCenter.service");
+exports.jobCostCenterSyncController = {
     // =========================================
-    // SYNC JOBS (USER CONTROLS ARCHIVED)
+    // SYNC ALL JOB COST CENTERS
     // =========================================
-    syncJobs: async (req, res) => {
+    syncJobCostCenters: async (req, res) => {
         try {
-            const { companyId, includeArchived, simproCompanyId } = req.body;
+            const { companyId, simproCompanyId } = req.body;
             if (!companyId || !simproCompanyId) {
                 return res.status(400).json({
                     success: false,
                     message: "companyId and simproCompanyId are required",
                 });
             }
-            const result = await (0, jobs_service_1.syncJobs)(companyId, simproCompanyId, Boolean(includeArchived));
+            const result = await (0, jobCostCenter_service_1.syncJobCostCenters)(companyId, simproCompanyId);
             return res.status(200).json({
                 success: true,
-                message: includeArchived
-                    ? "Jobs (including archived) synced successfully"
-                    : "Active jobs synced successfully",
+                message: "Job cost centers synced successfully",
                 result,
             });
         }
         catch (error) {
-            console.error("syncJobs error:", error);
+            console.error("syncJobCostCenters error:", error);
             return res.status(500).json({
                 success: false,
-                message: error.message ?? "Failed to sync jobs",
+                message: error.message ?? "Failed to sync job cost centers",
             });
         }
     },
