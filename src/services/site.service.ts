@@ -256,7 +256,7 @@ export async function syncSites(
 
   result.fetched = activeIds.length + archivedIds.length;
 
-  const limiter = new RateLimiter({ concurrency: 5, delayMs: 600 });
+  const limiter = new RateLimiter({ concurrency: 5, delayMs: 400 });
 
   const activeSites = await limiter.processBatch(activeIds, (id) =>
     fetchSiteDetail(apiUrl, apiKey, simproCompanyId, id)

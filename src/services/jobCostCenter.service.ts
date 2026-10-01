@@ -273,7 +273,7 @@ export async function syncJobCostCenters(
 
   result.fetched = list.length;
 
-  const limiter = new RateLimiter({ concurrency: 5, delayMs: 500 });
+  const limiter = new RateLimiter({ concurrency: 5, delayMs: 400 });
 
   await limiter.processBatch(list, async (item) => {
     try {

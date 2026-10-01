@@ -213,11 +213,17 @@ exports.authController = {
             });
             // New access token
             const newAccessToken = (0, utils_1.signAccessToken)(payload.sub, payload.email);
-            // Rotate refresh cookie
+            // Rotate cookies
             res.cookie("refreshToken", newRefreshToken, refreshCookieOptions);
+            res.cookie("accessToken", newAccessToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                sameSite: "lax",
+                path: "/",
+                maxAge: 15 * 60 * 1000,
+            });
             return res.json({
                 success: true,
-                accessToken: newAccessToken,
             });
         }
         catch (error) {
@@ -241,7 +247,18 @@ exports.authController = {
                 }
                 catch { }
             }
-            res.clearCookie("refreshToken", { path: "/" });
+            res.clearCookie("accessToken", {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                sameSite: "lax",
+                path: "/",
+            });
+            res.clearCookie("refreshToken", {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                sameSite: "lax",
+                path: "/",
+            });
             return res.json({ success: true });
         }
         catch (error) {
@@ -261,9 +278,23 @@ exports.authController = {
             const payload = (0, utils_1.verifyAccessToken)(token);
             const userId = payload.sub;
             const session = await prisma_1.prisma.session.findFirst({
-                where: { userId, revoked: false },
-                orderBy: { createdAt: "desc" },
+                where: {
+                    userId,
+                    revoked: false,
+                    expiresAt: {
+                        gt: new Date(),
+                    },
+                },
+                orderBy: {
+                    createdAt: "desc",
+                },
             });
+            if (!session) {
+                return res.status(401).json({
+                    success: false,
+                    message: "Session expired",
+                });
+            }
             const userCompany = await prisma_1.prisma.userCompany.findUnique({
                 where: {
                     userId_companyId: {
@@ -271,7 +302,11 @@ exports.authController = {
                         companyId: session.activeCompanyId,
                     },
                 },
-                include: { role: true, company: true, user: true },
+                include: {
+                    role: true,
+                    company: true,
+                    user: true,
+                },
             });
             return res.json({
                 success: true,
@@ -369,7 +404,6 @@ exports.authController = {
                 expiresAt: new Date(Date.now() + 60 * 60 * 1000),
             },
         });
-        console.log("RESET TOKEN:", raw);
         res.json({ success: true });
     },
     confirmPasswordReset: async (req, res) => {

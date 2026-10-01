@@ -330,7 +330,7 @@ export async function syncJobs(
 
   const total = activeIds.length + archivedIds.length;
 
-  const limiter = new RateLimiter({ concurrency: 5, delayMs: 500 });
+  const limiter = new RateLimiter({ concurrency: 5, delayMs: 400 });
   const activeJobs = await limiter.processBatch(
     activeIds,
     (id) => fetchJobDetail(apiUrl, apiKey, simproCompanyId, id),

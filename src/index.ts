@@ -36,6 +36,7 @@ import { reportAssetTestsRoutes } from "./routes/report/reportAssetTest.route";
 import { reportJobResponseTimesRoutes } from "./routes/report/reportJobResponseTime.route";
 import SyncEntityConfigRouter from "./routes/syncEntityConfig.route";
 import getDashboardRouter from "./routes/sync.route";
+import "./cron/simproSync";
 
 dotenv.config();
 

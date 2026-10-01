@@ -391,7 +391,7 @@ export async function syncQuotes(
 
   result.fetched = activeIds.length + archivedIds.length;
 
-  const limiter = new RateLimiter({ concurrency: 5, delayMs: 500 });
+  const limiter = new RateLimiter({ concurrency: 5, delayMs: 400 });
 
   const activeQuotes = await limiter.processBatch(activeIds, (id) =>
     fetchQuoteDetail(apiUrl, apiKey, simproCompanyId, id)

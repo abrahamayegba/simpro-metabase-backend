@@ -36,7 +36,7 @@ async function fetchCustomerIds(apiUrl, apiKey, simproCompanyId, archived) {
 // PHASE 2 — FETCH CUSTOMER DETAIL (INDIVIDUAL)
 // =====================================================
 async function fetchCustomerDetail(apiUrl, apiKey, simproCompanyId, customerId) {
-    const url = `${apiUrl}/api/v1.0/companies/${simproCompanyId}/customers/individuals/${customerId}`;
+    const url = `${apiUrl}/api/v1.0/companies/${simproCompanyId}/customers/companies/${customerId}`;
     const res = await fetch(url, {
         headers: { Authorization: `Bearer ${apiKey}` },
     });
@@ -49,20 +49,31 @@ async function fetchCustomerDetail(apiUrl, apiKey, simproCompanyId, customerId) 
 // PHASE 3 — TRANSFORM & UPSERT
 // =====================================================
 async function upsertCustomer(companyId, customer, archived) {
-    const exists = await prisma_1.prisma.customer.findUnique({
+    const data = transformSimproCustomer(customer);
+    await prisma_1.prisma.customer.upsert({
         where: {
             id_companyId: {
                 id: customer.ID,
                 companyId,
             },
         },
+        update: {
+            ...data,
+            archived,
+        },
+        create: {
+            id: customer.ID,
+            companyId,
+            ...data,
+            archived,
+        },
     });
-    const data = {
-        companyName: null,
-        givenName: customer.GivenName ?? null,
-        familyName: customer.FamilyName ?? null,
+}
+function transformSimproCustomer(customer) {
+    return {
+        companyName: customer.CompanyName ?? null,
         phone: customer.Phone ?? null,
-        altPhone: customer.AltPhone ?? null,
+        altPhone: customer.AltPhone || null,
         email: customer.Email ?? null,
         doNotCall: customer.DoNotCall ?? false,
         address: customer.Address?.Address ?? null,
@@ -79,31 +90,35 @@ async function upsertCustomer(companyId, customer, archived) {
         amountOwing: customer.AmountOwing ?? null,
         creditLimit: customer.Banking?.CreditLimit ?? null,
         onStop: customer.Banking?.OnStop ?? false,
-        accountManagerId: customer.Profile?.AccountManager?.ID ?? null,
+        materialPricingTierId: customer.Rates?.Material?.PricingTier?.ID ?? null,
+        materialPricingTierName: customer.Rates?.Material?.PricingTier?.Name ?? null,
+        materialPricingTierMarkup: customer.Rates?.Material?.PricingTier?.DefaultMarkup ?? null,
+        materialMarkup: customer.Rates?.Material?.Markup ?? null,
+        profileNotes: customer.Profile?.Notes ?? null,
         customerProfileId: customer.Profile?.CustomerProfile?.ID ?? null,
+        customerProfileName: customer.Profile?.CustomerProfile?.Name ?? null,
         customerGroupId: customer.Profile?.CustomerGroup?.ID ?? null,
+        customerGroupName: customer.Profile?.CustomerGroup?.Name ?? null,
+        accountManagerId: customer.Profile?.AccountManager?.ID ?? null,
+        accountManagerName: customer.Profile?.AccountManager?.Name ?? null,
+        serviceJobCostCenterId: customer.Profile?.ServiceJobCostCenter?.ID ?? null,
+        serviceJobCostCenterName: customer.Profile?.ServiceJobCostCenter?.Name ?? null,
+        bankAccountName: customer.Banking?.AccountName ?? null,
+        bankRoutingNo: customer.Banking?.RoutingNo ?? null,
+        bankAccountNo: customer.Banking?.AccountNo ?? null,
+        paymentMethodId: customer.Banking?.PaymentMethod?.ID ?? null,
+        paymentMethodName: customer.Banking?.PaymentMethod?.Name ?? null,
+        paymentTermId: customer.Banking?.PaymentTermID ?? null,
+        paymentTermDays: customer.Banking?.PaymentTerms?.Days ?? null,
+        paymentTermType: customer.Banking?.PaymentTerms?.Type ?? null,
+        retentionType: customer.Banking?.Retention ?? null,
+        vendorOrderNoRequired: customer.Banking?.VendorOrderNoRequired ?? null,
         dateCreated: customer.DateCreated ? new Date(customer.DateCreated) : null,
         dateModified: customer.DateModified
             ? new Date(customer.DateModified)
             : null,
-        archived,
         lastSynced: new Date(),
     };
-    await prisma_1.prisma.customer.upsert({
-        where: {
-            id_companyId: {
-                id: customer.ID,
-                companyId,
-            },
-        },
-        update: data,
-        create: {
-            id: customer.ID,
-            companyId,
-            ...data,
-        },
-    });
-    return exists ? "updated" : "created";
 }
 // =====================================================
 // MAIN ORCHESTRATOR
@@ -125,7 +140,7 @@ async function syncCustomers(companyId, simproCompanyId, includeArchived = false
         where: {
             companyId_provider: {
                 companyId,
-                provider: "simpro",
+                provider: "Simpro",
             },
         },
     });
@@ -145,7 +160,7 @@ async function syncCustomers(companyId, simproCompanyId, includeArchived = false
     // ---------------------------------------------------
     // FETCH DETAILS (RATE LIMITED)
     // ---------------------------------------------------
-    const limiter = new rate_limiter_1.RateLimiter({ concurrency: 5, delayMs: 400 });
+    const limiter = new rate_limiter_1.RateLimiter({ concurrency: 6, delayMs: 500 });
     const activeCustomers = await limiter.processBatch(activeIds, (id) => fetchCustomerDetail(apiUrl, apiKey, simproCompanyId, id), (done, total) => onProgress?.(done, total));
     const archivedCustomers = includeArchived
         ? await limiter.processBatch(archivedIds, (id) => fetchCustomerDetail(apiUrl, apiKey, simproCompanyId, id), (done) => onProgress?.(activeCustomers.length + done, result.fetched))
@@ -155,8 +170,8 @@ async function syncCustomers(companyId, simproCompanyId, includeArchived = false
     // ---------------------------------------------------
     for (const customer of activeCustomers) {
         try {
-            const r = await upsertCustomer(companyId, customer, false);
-            r === "created" ? result.created++ : result.updated++;
+            await upsertCustomer(companyId, customer, false);
+            result.updated++;
         }
         catch (e) {
             result.errors.push({ customerId: customer.ID, error: e.message });
