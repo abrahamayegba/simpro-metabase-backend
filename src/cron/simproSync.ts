@@ -1,14 +1,44 @@
 import cron from "node-cron";
-import { syncCustomers } from "../services/customer.service";
-import { syncSites } from "../services/site.service";
-import { syncEmployees } from "../services/employee.service";
 import { syncJobs } from "../services/jobs.service";
 import { syncQuotes } from "../services/quote.service";
 import { syncJobCostCenters } from "../services/jobCostCenter.service";
 import { syncContractorJobs } from "../services/contractorJob.service";
+import { syncCustomers } from "../services/customer.service";
+import { syncSites } from "../services/site.service";
+import { syncEmployees } from "../services/employee.service";
 
 const companyId = "cmtsizk0m0000chocs3fxgzgv";
 const simproCompanyId = "0";
+
+const retrySync = async (
+  name: string,
+  syncFunction: () => Promise<unknown>,
+  retries = 3,
+  delayMs = 10000,
+) => {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      await syncFunction();
+
+      console.log(`✅ ${name} synced`);
+      return;
+    } catch (error) {
+      console.error(
+        `❌ ${name} failed (attempt ${attempt}/${retries}):`,
+        error,
+      );
+
+      if (attempt === retries) {
+        console.error(`🚨 ${name} failed after ${retries} attempts`);
+        return;
+      }
+
+      console.log(`🔁 Retrying ${name} in ${delayMs / 1000}s...`);
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+};
 
 export const runSimproSync = async () => {
   console.log("========================================");
@@ -20,33 +50,29 @@ export const runSimproSync = async () => {
       throw new Error("SIMPRO_COMPANY_ID is not configured");
     }
 
-    console.log("👥 Syncing customers...");
-    await syncCustomers(companyId, simproCompanyId, true);
-    console.log("✅ Customers synced");
+    await retrySync("Customers", () =>
+      syncCustomers(companyId, simproCompanyId, true),
+    );
 
-    console.log("🏢 Syncing sites...");
-    await syncSites(companyId, simproCompanyId, true);
-    console.log("✅ Sites synced");
+    await retrySync("Sites", () => syncSites(companyId, simproCompanyId, true));
 
-    console.log("👷 Syncing employees...");
-    await syncEmployees(companyId, simproCompanyId, true);
-    console.log("✅ Employees synced");
+    await retrySync("Employees", () =>
+      syncEmployees(companyId, simproCompanyId, true),
+    );
 
-    console.log("🔧 Syncing jobs...");
-    await syncJobs(companyId, simproCompanyId, true);
-    console.log("✅ Jobs synced");
+    await retrySync("Jobs", () => syncJobs(companyId, simproCompanyId, true));
 
-    console.log("📋 Syncing quotes...");
-    await syncQuotes(companyId, simproCompanyId, true);
-    console.log("✅ Quotes synced");
+    await retrySync("Quotes", () =>
+      syncQuotes(companyId, simproCompanyId, true),
+    );
 
-    console.log("💰 Syncing job cost centres...");
-    await syncJobCostCenters(companyId, simproCompanyId);
-    console.log("✅ Job cost centres synced");
+    await retrySync("Job cost centres", () =>
+      syncJobCostCenters(companyId, simproCompanyId),
+    );
 
-    console.log("👷‍♂️ Syncing contractor jobs...");
-    await syncContractorJobs(companyId, simproCompanyId);
-    console.log("✅ Contractor jobs synced");
+    await retrySync("Contractor jobs", () =>
+      syncContractorJobs(companyId, simproCompanyId),
+    );
 
     console.log("========================================");
     console.log("✅ Simpro sync completed");
@@ -56,10 +82,17 @@ export const runSimproSync = async () => {
   }
 };
 
-setTimeout(
+cron.schedule(
+  "0 6,14 * * *",
   () => {
-    console.log("⏰ 2-minute test timer triggered");
+    console.log("⏰ Scheduled Simpro sync triggered");
     runSimproSync();
   },
-  2 * 60 * 1000,
+  {
+    timezone: "Europe/London",
+  },
 );
+
+// // Run immediately on startup
+// console.log("⏰ Running initial Simpro sync...");
+// runSimproSync();
